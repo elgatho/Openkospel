@@ -48,26 +48,7 @@ select:
       } else {
          return std::string("Wyłączony");
       }  
-    write_lambda: |-
-      // Read the current value from the register
-      uint16_t reg = (int(id(wbrwf1).state) & 0xFF00) >> 8 | (int(id(wbrwf1).state) & 0x00FF);
-
-      // Directly manipulate bits based on selected value
-      if (value == 0) {
-        // If the selected value is 0 (Wyłączony), set the bits accordingly
-        reg &= ~(1 << 3);  // Clear bit 3 (summer mode off)
-        reg &= ~(1 << 5);  // Clear bit 5 (winter mode off)
-      } else if (value == 1) {
-        // If the selected value is 1 (Lato), set summer mode and clear winter mode
-        reg |= (1 << 3);   // Set bit 3 (summer mode on)
-        reg &= ~(1 << 5);  // Clear bit 5 (winter mode off)
-      } else if (value == 2) {
-        // If the selected value is 2 (Zima), set winter mode and clear summer mode
-        reg &= ~(1 << 3);  // Clear bit 3 (summer mode off)
-        reg |= (1 << 5);   // Set bit 5 (winter mode on)
-      }
-
-      return reg;  // Return the modified register value
+  
           
 number:
   - platform: modbus_controller
