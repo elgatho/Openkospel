@@ -1,0 +1,445 @@
+logger:
+  baud_rate: 0
+
+packages:
+  common: !include common/common.yaml 
+  device_base: !include common/device_base.yaml
+
+
+status_led:
+  pin: GPIO2
+uart:
+  id: mod_bus
+  tx_pin: TX
+  rx_pin: RX
+  baud_rate: 9600
+  stop_bits: 1
+  parity: NONE
+
+modbus:
+  id: modbus1
+
+modbus_controller:
+  - id: kospel
+    address: 101
+    modbus_id: modbus1
+    setup_priority: -11
+    update_interval: 20s
+    command_throttle: 1s
+    allow_duplicate_commands: true
+
+select:
+  - platform: modbus_controller
+    id: onoffsel1
+    name: "Temp comfort boiler set"
+    address: 0x0b55
+    value_type: U_WORD
+    entity_category: config
+    icon: "mdi:toggle-switch"
+    optionsmap:
+      "Zima": 2
+      "Lato": 1
+      "Wyłączony": 0
+    lambda: |-
+      uint16_t value = (int(id(wbrwf1).state) & 0xFF00) >> 8 | (int(id(wbrwf1).state) & 0x00FF);
+      
+      int zima = ((value >> 5) & 1);  
+      int lato = ((value >> 3) & 1);
+      int tryb = 0;
+      if (zima == 1 && lato == 1) {
+         return std::string("Zima");
+      } else if (lato == 1 && zima == 0) {
+         return std::string("Lato");
+      } else {
+         return std::string("Wyłączony");
+      }  
+    write_lambda: |-
+      // Read the current value from the register
+      uint16_t reg = (int(id(wbrwf1).state) & 0xFF00) >> 8 | (int(id(wbrwf1).state) & 0x00FF);
+
+      // Directly manipulate bits based on selected value
+      if (value == 0) {
+        // If the selected value is 0 (Wyłączony), set the bits accordingly
+        reg &= ~(1 << 3);  // Clear bit 3 (summer mode off)
+        reg &= ~(1 << 5);  // Clear bit 5 (winter mode off)
+      } else if (value == 1) {
+        // If the selected value is 1 (Lato), set summer mode and clear winter mode
+        reg |= (1 << 3);   // Set bit 3 (summer mode on)
+        reg &= ~(1 << 5);  // Clear bit 5 (winter mode off)
+      } else if (value == 2) {
+        // If the selected value is 2 (Zima), set winter mode and clear summer mode
+        reg &= ~(1 << 3);  // Clear bit 3 (summer mode off)
+        reg |= (1 << 5);   // Set bit 5 (winter mode on)
+      }
+
+      return reg;  // Return the modified register value
+          
+number:
+  - platform: modbus_controller
+    id: config_temp_boil_komf
+    name: "Ustaw temp komfortowa boilera"
+    address: 0x0b67
+    value_type: U_WORD
+    entity_category: config
+    icon: "mdi:toggle-switch"
+    min_value: 35
+    max_value: 50
+    lambda: |-
+      int value = data[3] << 8 |  data[2];
+      value = value / 10;
+      return value ; 
+    write_lambda: |-
+      int int_value = static_cast<int>(x * 10);
+      return (int_value << 8) | (int_value >> 8); 
+  
+  - platform: modbus_controller
+    id: config_temp_boil_eko
+    name: "Ustaw temp ekonomiczna boilera"
+    address: 0x0b66
+    value_type: U_WORD
+    entity_category: config
+    icon: "mdi:toggle-switch"
+    min_value: 30
+    max_value: 45
+    lambda: |-
+      int value = data[1] << 8 |  data[0];
+      value = value / 10;
+      return value ; 
+    write_lambda: |-
+      int int_value = static_cast<int>(x * 10);
+      return (int_value << 8) | (int_value >> 8);     
+
+sensor:
+  - platform: modbus_controller
+    modbus_controller_id: kospel
+    name: "Temperatura w na zewnątrz"
+    id: temperature_outside
+    register_type: holding
+    address: 0x0b4c
+    device_class: temperature
+    value_type: S_WORD
+    unit_of_measurement: "°C"
+    accuracy_decimals: 1
+    filters:
+      - multiply: 0.1
+    lambda: |-
+        int16_t value = data[item->offset+1] << 8 |  data[item->offset];
+        return value ;  
+ 
+  - platform: modbus_controller
+    modbus_controller_id: kospel
+    name: "Temperatura boiler"
+    id: temperature_boil
+    register_type: holding
+    address: 0x0b4a
+    device_class: temperature
+    value_type: S_WORD
+    unit_of_measurement: "°C"
+    accuracy_decimals: 1
+    filters:
+      - multiply: 0.1
+    lambda: |-
+        int value = data[item->offset+1] << 8 |  data[item->offset];
+        return value ; 
+
+  - platform: modbus_controller
+    modbus_controller_id: kospel
+    name: "Temperatura Wejścia"
+    id: temperature_in
+    register_type: holding
+    address: 0x0b48
+    value_type: S_WORD
+    unit_of_measurement: "°C"
+    device_class: temperature
+    accuracy_decimals: 1
+    filters:
+      - multiply: 0.1
+    lambda: |-
+        int value = data[1] << 8 |  data[0];
+        return value ;
+
+  - platform: modbus_controller
+    modbus_controller_id: kospel
+    name: "Temperatura Wyjścia"
+    id: temperature_out
+    register_type: holding
+    address: 0x0b49
+    value_type: S_WORD
+    unit_of_measurement: "°C"
+    device_class: temperature
+    accuracy_decimals: 1
+    filters:
+      - multiply: 0.1
+    lambda: |-
+        int value = data[3] << 8 |  data[2];
+        return value ; 
+
+  - platform: modbus_controller
+    modbus_controller_id: kospel
+    name: "Temperatura zadana układu"
+    id: temperature_factor
+    register_type: holding
+    address: 0x0b44
+    value_type: U_WORD
+    unit_of_measurement: "°C"
+    device_class: temperature
+    accuracy_decimals: 1
+    filters:
+      - multiply: 0.1
+    lambda: |-
+        int value = data[1] << 8 |  data[0];
+        return value ; 
+
+  - platform: modbus_controller
+    modbus_controller_id: kospel
+    name: "Temperatura boilera min"
+    id: temperature_boil_min
+    register_type: holding
+    address: 0x0bbe
+    value_type: U_WORD
+    unit_of_measurement: "°C"
+    device_class: temperature
+    accuracy_decimals: 1
+    filters:
+      - multiply: 0.1
+    lambda: |-
+        int value = data[2] << 8 |  data[1];
+        return value ; 
+  
+  - platform: modbus_controller
+    modbus_controller_id: kospel
+    name: "Temperatura boilera max"
+    id: temperature_boil_max
+    register_type: holding
+    address: 0x0bbf
+    value_type: U_WORD
+    unit_of_measurement: "°C"
+    device_class: temperature
+    accuracy_decimals: 1
+    filters:
+      - multiply: 0.1
+    lambda: |-
+        int value = data[2] << 8 |  data[1];
+        return value ; 
+
+  - platform: modbus_controller
+    modbus_controller_id: kospel
+    name: "Temperatura boilera komfortowa"
+    id: temperature_boil_komfort
+    register_type: holding
+    address: 0x0b67
+    value_type: U_WORD
+    unit_of_measurement: "°C"
+    device_class: temperature
+    accuracy_decimals: 1
+    filters:
+      - multiply: 0.1
+    lambda: |-
+        int value = data[3] << 8 |  data[2];
+        return value ; 
+
+  - platform: modbus_controller
+    modbus_controller_id: kospel
+    name: "Temperatura boilera ekonomiczna"
+    id: temperature_boil_ekonomiczna
+    register_type: holding
+    address: 0x0b66
+    value_type: U_WORD
+    unit_of_measurement: "°C"
+    device_class: temperature
+    accuracy_decimals: 1
+    filters:
+      - multiply: 0.1
+    lambda: |-
+        int value = data[1] << 8 |  data[0];
+        return value ; 
+
+  - platform: modbus_controller
+    modbus_controller_id: kospel
+    name: "Ciśnienie w układzie"
+    id: presaure
+    register_type: holding
+    address: 0x0b4e
+    value_type: S_WORD
+    unit_of_measurement: "bar"
+    accuracy_decimals: 1
+    device_class: pressure
+    filters:
+      - multiply: 0.01
+    lambda: |-
+        int value = data[1] << 8 |  data[0];
+        return value ;
+ 
+  - platform: modbus_controller
+    modbus_controller_id: kospel
+    name: "Przepływ"
+    id: flow
+    register_type: holding
+    address: 0x0b4f
+    value_type: U_WORD
+    device_class: volume_flow_rate 
+    unit_of_measurement: "l/min"
+    accuracy_decimals: 1
+    filters:
+      - multiply: 0.1
+    lambda: |-
+        int value = data[item->offset+1] << 8 |  data[item->offset];
+        return value ;        
+
+  - platform: modbus_controller
+    modbus_controller_id: kospel
+    name: "Moc"
+    id: power
+    register_type: holding
+    address: 0x0b46
+    value_type: S_WORD
+    unit_of_measurement: "kW"
+    device_class: power
+    accuracy_decimals: 1
+    filters:
+      - multiply: 0.1
+    lambda: |-
+        int value = data[1] << 8 |  data[0];
+        return value ;
+    
+    
+  - platform: modbus_controller
+    modbus_controller_id: kospel
+    name: "[WB] Wejścia binarne"
+    internal: true
+    id: wb
+    register_type: holding
+    address: 0x0b51
+  
+  - platform: modbus_controller
+    modbus_controller_id: kospel
+    name: "[WB] Wejścia binarne rw_flagi_1"
+    internal: true
+    id: wbrwf1
+    register_type: holding
+    address: 0x0b55  
+  
+
+binary_sensor:
+  - platform: template
+    name: "[WB] CO_YES_NO"
+    lambda: |-
+        uint16_t value = (int(id(wbrwf1).state) & 0xFF00) >> 8 | (int(id(wbrwf1).state) & 0x00FF);
+        return ((value >> 4) & 1);  
+
+
+  - platform: template
+    name: "[WB] Pompa"
+    lambda: |-
+        uint16_t value = (int(id(wb).state) & 0xFF00) >> 8 | (int(id(wb).state) & 0x00FF);
+        return (value & 1); 
+
+  - platform: template
+    name: "[WB] Pompa cyrkulacyjna"
+    lambda: |-
+            uint16_t value = (int(id(wb).state) & 0xFF00) >> 8 | (int(id(wb).state) & 0x00FF);
+            return ((value >> 1) & 1); 
+
+
+  - platform: template
+    name: "[WB] Wejscie sygnału nadrzędnego"
+    lambda: |-
+      uint16_t value = (int(id(wb).state) & 0xFF00) >> 8 | (int(id(wb).state) & 0x00FF);
+      return ((value >> 3) & 1);  
+
+  - platform: template
+    name: "[WB] Wejście regulatora pokojowego"
+    lambda: |-
+      uint16_t value = (int(id(wb).state) & 0xFF00) >> 8 | (int(id(wb).state) & 0x00FF);
+      return ((value >> 4) & 1);
+
+  - platform: template
+    name: "[WB] Fun"
+    lambda: |-
+      uint16_t value = (int(id(wb).state) & 0xFF00) >> 8 | (int(id(wb).state) & 0x00FF);
+      return ((value >> 6) & 1);
+     
+  - platform: template
+    name: "[WB] CO"
+    lambda: |-
+      uint16_t value = (int(id(wb).state) & 0xFF00) >> 8 | (int(id(wb).state) & 0x00FF);
+      return ((value >> 7) & 1);
+  
+  - platform: template
+    name: "[WB] CWU"
+    lambda: |-
+      uint16_t value = (int(id(wb).state) & 0xFF00) >> 8 | (int(id(wb).state) & 0x00FF);
+      return ((value >> 8) & 1);    
+        
+ #Konfiguracja
+text_sensor:
+  - platform: modbus_controller
+    modbus_controller_id: kospel
+    name: "Tryb pracy boilera"
+    id: tryb_pracy_boilera
+    register_type: holding
+    address: 0x0b30
+    raw_encode: HEXBYTES
+    lambda: |-
+        uint16_t value = data[1] << 8 |  data[0];
+        switch (value) {
+        case 0: return std::string("Ekonomiczny");
+        case 1: return std::string("Przeciw zamarzanie");
+        case 2: return std::string("Komfortowy");
+        default: return std::string("Unknown");
+        }
+        return x;      
+  - platform: modbus_controller
+    modbus_controller_id: kospel
+    name: "Tryb pracy kotła"
+    id: tryb_pracy_kotla
+    register_type: holding
+    address: 0x0b32
+    raw_encode: HEXBYTES
+    lambda: |-
+        uint16_t value = data[1] << 8 |  data[0];
+        switch (value) {
+        case 0: return std::string("Ekonomiczny");
+        case 1: return std::string("Przeciw zamarzanie");
+        case 2: return std::string("Komfortowy");
+        case 3: return std::string("Komfortowy minus");
+        case 4: return std::string("Komfortowy plus");
+        case 64: return std::string("Grzanie pokoju");
+        default: return std::string("Unknown");
+        }
+        return x;         
+  
+  - platform: modbus_controller
+    modbus_controller_id: kospel
+    name: "[WB] Zawór TDR"
+    id: tdr
+    register_type: holding
+    address: 0x0b51
+    raw_encode: HEXBYTES
+    lambda: |-
+        uint16_t value = (int(id(wb).state) & 0xFF00) >> 8 | (int(id(wb).state) & 0x00FF);
+        value = ((value >> 2) & 1); 
+        switch (value) {
+        case 0: return std::string("co");
+        case 1: return std::string("cwu");
+        default: return std::string("Unknown");
+        }
+        return x;   
+
+  - platform: template
+    name: "[WB] Zima"
+    lambda: |-
+      uint16_t value = (int(id(wbrwf1).state) & 0xFF00) >> 8 | (int(id(wbrwf1).state) & 0x00FF);
+      
+      int zima = ((value >> 5) & 1);  
+      int lato = ((value >> 3) & 1);
+      
+      if (zima == 1 && lato == 1) {
+         return std::string("Tryb zimowy");  
+      } else if (lato == 1 && zima == 0) {
+         return std::string("Tryb letni"); 
+      } else {
+         return std::string("Kocioł wyłączony");  
+      }
+        
+               
