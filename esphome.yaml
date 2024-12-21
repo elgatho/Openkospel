@@ -1,11 +1,6 @@
 logger:
   baud_rate: 0
 
-packages:
-  common: !include common/common.yaml 
-  device_base: !include common/device_base.yaml
-
-
 status_led:
   pin: GPIO2
 uart:
