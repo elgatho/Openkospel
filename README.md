@@ -2,4 +2,7 @@
 # Openkospel
 Project for implementing kospel heater to Home Assistant using ESPHOME integration.
 It is under heavy developement, you are using it at your own risk!
-![hw-0519  wiring](https://github.com/user-attachments/assets/705b72b7-c7ad-4dc8-b83e-5a08ed171ab6)
+
+# Wiring
+Tested on module HW-0519
+![hw-0519  wiring](https://github.com/user-attachments/assets/b32596c1-1ebe-492b-9a8d-2f6e50492b6a)
