@@ -86,6 +86,16 @@ number:
       return (int_value << 8) | (int_value >> 8);     
 
 sensor:
+  - platform: total_daily_energy
+    name: "Kospel zużycie energii dzienne"
+    id: kospel_daily_power_usage
+    power_id: power
+    filters:
+      # Multiplication factor from W to kW is 0.001
+      - multiply: 0.001
+    unit_of_measurement: kWh
+    icon: mdi:calendar-clock
+    
   - platform: modbus_controller
     modbus_controller_id: kospel
     name: "Temperatura w na zewnątrz"
