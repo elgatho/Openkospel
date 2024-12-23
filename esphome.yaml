@@ -32,12 +32,12 @@ select:
     entity_category: config
     icon: "mdi:toggle-switch"
     optionsmap:
-      "Zima": 2
-      "Lato": 1
       "Wyłączony": 0
+      "Lato": 1
+      "Zima": 2
+      
     lambda: |-
       uint16_t value = (int(id(wbrwf1).state) & 0xFF00) >> 8 | (int(id(wbrwf1).state) & 0x00FF);
-      
       int zima = ((value >> 5) & 1);  
       int lato = ((value >> 3) & 1);
       int tryb = 0;
@@ -48,6 +48,19 @@ select:
       } else {
          return std::string("Wyłączony");
       }  
+    write_lambda: |-  
+      uint16_t reg = int(id(wbrwf1).state);
+      if (value == 0) {
+        reg &= ~(1 << 11);  
+        reg &= ~(1 << 13);  
+      } else if (value == 1) {
+        reg |= (1 << 11);  
+        reg &= ~(1 << 13);
+      } else if (value == 2) {
+        reg &= ~(1 << 11);
+        reg |= (1 << 13);
+      }
+      return reg;
   
           
 number:
