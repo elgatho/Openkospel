@@ -107,9 +107,9 @@ sensor:
     unit_of_measurement: kWh
     icon: mdi:calendar-clock
     
-  - platform: modbus_controller
+   - platform: modbus_controller
     modbus_controller_id: kospel
-    name: "Temperatura w na zewnątrz"
+    name: "Temperatura na zewnątrz"
     id: temperature_outside
     register_type: holding
     address: 0x0b4c
@@ -122,23 +122,27 @@ sensor:
     lambda: |-
         int16_t value = data[item->offset+1] << 8 |  data[item->offset];
         return value ;  
-
+ 
   - platform: modbus_controller
     modbus_controller_id: kospel
     name: "Temperatura wewnątrz"
     id: temperature_inside
     register_type: holding
+    unit_of_measurement: "°C"
+    accuracy_decimals: 1
     address: 0x0b4b
     device_class: temperature
     value_type: S_WORD
-    unit_of_measurement: "°C"
-    accuracy_decimals: 1
-    filters:
-      - multiply: 0.1
     lambda: |-
-        int16_t value = data[item->offset+1] << 8 |  data[item->offset];
-        return value ; 
- 
+        uint16_t value = int(id(wbrwf1).state);
+        if (((value >> 10) & 1) == 0){
+          return NAN;
+        }   
+        else
+        { 
+          int16_t sens_value = data[item->offset+1] << 8 |  data[item->offset];
+          return sens_value;
+        }
   - platform: modbus_controller
     modbus_controller_id: kospel
     name: "Temperatura boiler"
