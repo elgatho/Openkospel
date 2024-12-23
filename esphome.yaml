@@ -23,6 +23,7 @@ modbus_controller:
     command_throttle: 1s
     allow_duplicate_commands: true
 
+select:
   - platform: modbus_controller
     id: onoffsel1
     name: "Temp comfort boiler set"
