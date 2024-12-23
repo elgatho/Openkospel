@@ -103,6 +103,8 @@ sensor:
     name: "Kospel zużycie energii dzienne"
     id: kospel_daily_power_usage
     power_id: power
+    state_class: total_increasing
+    device_class: energy
     unit_of_measurement: kWh
     icon: mdi:calendar-clock
     
@@ -121,6 +123,22 @@ sensor:
     lambda: |-
         int16_t value = data[item->offset+1] << 8 |  data[item->offset];
         return value ;  
+
+  - platform: modbus_controller
+    modbus_controller_id: kospel
+    name: "Temperatura wewnątrz"
+    id: temperature_inside
+    register_type: holding
+    address: 0x0b4b
+    device_class: temperature
+    value_type: S_WORD
+    unit_of_measurement: "°C"
+    accuracy_decimals: 1
+    filters:
+      - multiply: 0.1
+    lambda: |-
+        int16_t value = data[item->offset+1] << 8 |  data[item->offset];
+        return value ; 
  
   - platform: modbus_controller
     modbus_controller_id: kospel
