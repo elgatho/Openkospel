@@ -23,7 +23,6 @@ modbus_controller:
     command_throttle: 1s
     allow_duplicate_commands: true
 
-select:
   - platform: modbus_controller
     id: onoffsel1
     name: "Temp comfort boiler set"
@@ -37,10 +36,9 @@ select:
       "Zima": 2
       
     lambda: |-
-      uint16_t value = (int(id(wbrwf1).state) & 0xFF00) >> 8 | (int(id(wbrwf1).state) & 0x00FF);
-      int zima = ((value >> 5) & 1);  
-      int lato = ((value >> 3) & 1);
-      int tryb = 0;
+      uint16_t value = int(id(wbrwf1).state);
+      int zima = ((value >> 13) & 1);  
+      int lato = ((value >> 11) & 1);
       if (zima == 1 && lato == 0) {
          return std::string("Zima");
       } else if (lato == 1 && zima == 0) {
@@ -421,21 +419,5 @@ text_sensor:
         default: return std::string("Unknown");
         }
         return x;   
-
-  - platform: template
-    name: "[WB] Zima"
-    lambda: |-
-      uint16_t value = (int(id(wbrwf1).state) & 0xFF00) >> 8 | (int(id(wbrwf1).state) & 0x00FF);
-      
-      int zima = ((value >> 5) & 1);  
-      int lato = ((value >> 3) & 1);
-      
-      if (zima == 1 && lato == 1) {
-         return std::string("Tryb zimowy");  
-      } else if (lato == 1 && zima == 0) {
-         return std::string("Tryb letni"); 
-      } else {
-         return std::string("Kocioł wyłączony");  
-      }
         
                
