@@ -41,7 +41,7 @@ select:
       int zima = ((value >> 5) & 1);  
       int lato = ((value >> 3) & 1);
       int tryb = 0;
-      if (zima == 1 && lato == 1) {
+      if (zima == 1 && lato == 0) {
          return std::string("Zima");
       } else if (lato == 1 && zima == 0) {
          return std::string("Lato");
