@@ -25,8 +25,8 @@ modbus_controller:
 
 select:
   - platform: modbus_controller
-    id: onoffsel1
-    name: "Temp comfort boiler set"
+    id: tryb_pracy
+    name: "Tryb pracy"
     address: 0x0b55
     value_type: U_WORD
     entity_category: config
@@ -35,15 +35,19 @@ select:
       "Wyłączony": 0
       "Lato": 1
       "Zima": 2
+      "Wakacje": 3
       
     lambda: |-
       uint16_t value = int(id(wbrwf1).state);
       int zima = ((value >> 13) & 1);  
       int lato = ((value >> 11) & 1);
+      int wakacje = ((value >> 11) & 1);
       if (zima == 1 && lato == 0) {
          return std::string("Zima");
       } else if (lato == 1 && zima == 0) {
          return std::string("Lato");
+      } else if (wakacje == 1) {
+         return std::string("Wakacje");   
       } else {
          return std::string("Wyłączony");
       }  
@@ -52,14 +56,21 @@ select:
       if (value == 0) {
         reg &= ~(1 << 11);  
         reg &= ~(1 << 13);  
-      } else if (value == 1) {
+        reg &= ~(1 << 15);
+      } else if (value  == 1) {
         reg |= (1 << 11);  
+        reg &= ~(1 << 15);
         reg &= ~(1 << 13);
-      } else if (value == 2) {
+      } else if (value  == 2) {
         reg &= ~(1 << 11);
+        reg &= ~(1 << 15);
         reg |= (1 << 13);
       }
+      else if (value  == 3) {
+       reg |= (1 << 15);
+      }
       return reg;
+
   
           
 number:
