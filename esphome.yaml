@@ -102,7 +102,23 @@ number:
     write_lambda: |-
       int int_value = static_cast<int>(x * 10);
       return (int_value << 8) | (int_value >> 8); 
-  
+  - platform: modbus_controller
+    id: config_temp_co_manual
+    name: "Ustaw temp CO ręczna"
+    address: 0x0b73
+    value_type: U_WORD
+    entity_category: config
+    icon: "mdi:toggle-switch"
+    min_value: 30
+    max_value: 55
+    lambda: |-
+      int value = data[1] << 8 |  data[0];
+      value = value / 10;
+      return value ; 
+    write_lambda: |-
+      int int_value = static_cast<int>(x * 10);
+      return (int_value << 8) | (int_value >> 8);       
+      
   - platform: modbus_controller
     id: config_temp_boil_eko
     name: "Ustaw temp ekonomiczna boilera"
