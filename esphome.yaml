@@ -41,7 +41,7 @@ select:
       uint16_t value = int(id(wbrwf1).state);
       int zima = ((value >> 13) & 1);  
       int lato = ((value >> 11) & 1);
-      int wakacje = ((value >> 11) & 1);
+      int wakacje = ((value >> 15) & 1);
       if (zima == 1 && lato == 0) {
          return std::string("Zima");
       } else if (lato == 1 && zima == 0) {
