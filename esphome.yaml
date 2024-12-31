@@ -23,6 +23,7 @@ modbus_controller:
     command_throttle: 1s
     allow_duplicate_commands: true
 
+
 select:
   - platform: modbus_controller
     id: tryb_pracy
@@ -83,16 +84,30 @@ select:
        reg |= (1 << 14);     
       }
       return reg;
-  
-          
+
+  - platform: modbus_controller
+    id: config_pump_lift
+    name: "Wysokość podnoszenia pompy"
+    address: 0x0b83
+    value_type: U_WORD
+    entity_category: config
+    icon: "mdi:pump"
+    optionsmap:
+      "3m": 0
+      "4m": 256
+      "5m": 512
+      "6m": 768
+      "7m": 1024
+      "7.5m": 1280  
+        
 number:
   - platform: modbus_controller
+    icon: mdi:water-boiler
     id: config_temp_boil_komf
     name: "Ustaw temp komfortowa boilera"
     address: 0x0b67
     value_type: U_WORD
     entity_category: config
-    icon: "mdi:toggle-switch"
     min_value: 35
     max_value: 50
     lambda: |-
@@ -102,30 +117,14 @@ number:
     write_lambda: |-
       int int_value = static_cast<int>(x * 10);
       return (int_value << 8) | (int_value >> 8); 
-  - platform: modbus_controller
-    id: config_temp_co_manual
-    name: "Ustaw temp CO ręczna"
-    address: 0x0b73
-    value_type: U_WORD
-    entity_category: config
-    icon: "mdi:toggle-switch"
-    min_value: 30
-    max_value: 55
-    lambda: |-
-      int value = data[1] << 8 |  data[0];
-      value = value / 10;
-      return value ; 
-    write_lambda: |-
-      int int_value = static_cast<int>(x * 10);
-      return (int_value << 8) | (int_value >> 8);       
-      
+  
   - platform: modbus_controller
     id: config_temp_boil_eko
+    icon: mdi:water-boiler
     name: "Ustaw temp ekonomiczna boilera"
     address: 0x0b66
     value_type: U_WORD
     entity_category: config
-    icon: "mdi:toggle-switch"
     min_value: 30
     max_value: 45
     lambda: |-
@@ -135,18 +134,66 @@ number:
     write_lambda: |-
       int int_value = static_cast<int>(x * 10);
       return (int_value << 8) | (int_value >> 8);     
+  
+  - platform: modbus_controller
+    id: config_temp_co_manual
+    icon: mdi:heating-coil
+    name: "Ustaw temp CO ręczna"
+    address: 0x0b73
+    value_type: U_WORD
+    entity_category: config
+    min_value: 30
+    max_value: 55
+    lambda: |-
+      int value = data[1] << 8 |  data[0];
+      value = value / 10;
+      return value ; 
+    write_lambda: |-
+      int int_value = static_cast<int>(x * 10);
+      return (int_value << 8) | (int_value >> 8);        
 
 sensor:
   - platform: total_daily_energy
     name: "Kospel zużycie energii dzienne"
     id: kospel_daily_power_usage
-    power_id: power
-    state_class: total_increasing
+    power_id: power_main
+    restore: true
+    unit_of_measurement: kWh
+    device_class: energy
+    icon: mdi:calendar-clock
+
+  - platform: total_daily_energy
+    name: "Kospel zużycie energii dzienne CO"
+    id: kospel_daily_power_usage_co
+    power_id: power_co
+    restore: true
+    unit_of_measurement: kWh
+    icon: mdi:calendar-clock
+    device_class: energy
+  
+  - platform: total_daily_energy
+    name: "Kospel zużycie energii dzienne CWU"
+    id: kospel_daily_power_usage_cwu
+    power_id: power_cwu
+    restore: true
     device_class: energy
     unit_of_measurement: kWh
     icon: mdi:calendar-clock
     
-   - platform: modbus_controller
+################################### TIME
+     
+
+  - platform: modbus_controller
+    modbus_controller_id: kospel
+    name: "Time Data (Hours)"
+    id: time_date
+    register_type: holding
+    address: 0x0AF7
+    lambda: |-
+          uint8_t minutes = data[0];
+          uint8_t hours = data[2];
+          return hours * 100 + minutes;
+  - platform: modbus_controller
     modbus_controller_id: kospel
     name: "Temperatura na zewnątrz"
     id: temperature_outside
@@ -161,7 +208,7 @@ sensor:
     lambda: |-
         int16_t value = data[item->offset+1] << 8 |  data[item->offset];
         return value ;  
- 
+
   - platform: modbus_controller
     modbus_controller_id: kospel
     name: "Temperatura wewnątrz"
@@ -182,6 +229,7 @@ sensor:
           int16_t sens_value = data[item->offset+1] << 8 |  data[item->offset];
           return sens_value;
         }
+
   - platform: modbus_controller
     modbus_controller_id: kospel
     name: "Temperatura boiler"
@@ -198,6 +246,53 @@ sensor:
         int value = data[item->offset+1] << 8 |  data[item->offset];
         return value ; 
 
+  - platform: modbus_controller
+    modbus_controller_id: kospel
+    name: "Temperatura zasilania co min"
+    id: temp_zas_min
+    register_type: holding
+    address: 0x0bba
+    device_class: temperature
+    value_type: S_WORD
+    unit_of_measurement: "°C"
+    accuracy_decimals: 1
+    filters:
+      - multiply: 0.1
+    lambda: |-
+        int value = data[item->offset+1] << 8 |  data[item->offset];
+        return value ; 
+
+  - platform: modbus_controller
+    modbus_controller_id: kospel
+    name: "Temperatura zasilania co max"
+    id: temp_zas_max
+    register_type: holding
+    address: 0x0bbb
+    device_class: temperature
+    value_type: S_WORD
+    unit_of_measurement: "°C"
+    accuracy_decimals: 1
+    filters:
+      - multiply: 0.1
+    lambda: |-
+        int value = data[item->offset+1] << 8 |  data[item->offset];
+        return value ; 
+  
+  - platform: modbus_controller
+    modbus_controller_id: kospel
+    name: "Temperatura zasilania co ręczna"
+    id: temp_zas_man
+    register_type: holding
+    address: 0x0b73
+    device_class: temperature
+    value_type: S_WORD
+    unit_of_measurement: "°C"
+    accuracy_decimals: 1
+    filters:
+      - multiply: 0.1
+    lambda: |-
+        int value = data[item->offset+1] << 8 |  data[item->offset];
+        return value ;       
   - platform: modbus_controller
     modbus_controller_id: kospel
     name: "Temperatura Wejścia"
@@ -259,7 +354,7 @@ sensor:
     filters:
       - multiply: 0.1
     lambda: |-
-        int value = data[2] << 8 |  data[1];
+        int value = data[1] << 8 |  data[0];
         return value ; 
   
   - platform: modbus_controller
@@ -275,7 +370,7 @@ sensor:
     filters:
       - multiply: 0.1
     lambda: |-
-        int value = data[2] << 8 |  data[1];
+        int value = data[1] << 8 |  data[0];
         return value ; 
 
   - platform: modbus_controller
@@ -325,7 +420,7 @@ sensor:
     lambda: |-
         int value = data[1] << 8 |  data[0];
         return value ;
- 
+
   - platform: modbus_controller
     modbus_controller_id: kospel
     name: "Przepływ"
@@ -342,12 +437,54 @@ sensor:
         int value = data[item->offset+1] << 8 |  data[item->offset];
         return value ;        
 
+  - platform: template
+    name: "Moc"
+    id: power_main
+    unit_of_measurement: "kW"
+    device_class: power
+    lambda: |-
+        int value = id(wb_power).state;
+        if (value > 0 && value <= 24)
+        {
+        return value ;
+        }
+        else
+        { return 0; }
+  - platform: template
+    name: "Moc CO"
+    internal: true
+    id: power_co
+    unit_of_measurement: "kW"
+    device_class: power
+    accuracy_decimals: 1
+    lambda: |-
+          int value = id(wb_power).state; 
+          if (id(sensor_wb_co).state == 1 && id(tdr).state == "co")  {
+            return value;
+          } else {
+            return 0; 
+          }
+
+  - platform: template
+    name: "Moc CWU"
+    internal: true
+    id: power_cwu
+    unit_of_measurement: "kW"
+    device_class: power
+    lambda: |-
+          int value = id(wb_power).state; 
+          if (id(sensor_wb_cwu).state == 1 && id(tdr).state == "cwu")  {
+            return value;
+          } else {
+            return 0; 
+          }       
+    
   - platform: modbus_controller
     modbus_controller_id: kospel
-    name: "Moc"
-    id: power
+    name: "Maksymalna moc kotła"
+    id: max_power
     register_type: holding
-    address: 0x0b46
+    address: 0x0b34
     value_type: S_WORD
     unit_of_measurement: "kW"
     device_class: power
@@ -357,8 +494,8 @@ sensor:
     lambda: |-
         int value = data[1] << 8 |  data[0];
         return value ;
-    
-    
+
+
   - platform: modbus_controller
     modbus_controller_id: kospel
     name: "[WB] Wejścia binarne"
@@ -369,12 +506,45 @@ sensor:
   
   - platform: modbus_controller
     modbus_controller_id: kospel
+    name: "[WB] Wejścia binarne temperatury pokojowe"
+    internal: true
+    id: buff
+    register_type: holding
+    address: 0x0b8a
+  
+  - platform: modbus_controller
+    modbus_controller_id: kospel
+    name: "[WB] MOC"
+    internal: false
+    id: wb_power
+    register_type: holding
+    accuracy_decimals: 1
+    filters:
+      - multiply: 0.1
+    address: 0x0b46
+    lambda: |-
+        int value = data[1] << 8 |  data[0];
+        return value ;
+    on_value:
+        - component.update: power_main 
+        - component.update: power_co
+        - component.update: power_cwu
+
+  - platform: modbus_controller
+    modbus_controller_id: kospel
     name: "[WB] Wejścia binarne rw_flagi_1"
     internal: true
     id: wbrwf1
     register_type: holding
     address: 0x0b55  
   
+  - platform: modbus_controller
+    modbus_controller_id: kospel
+    name: "[WB] Błędy"
+    internal: true
+    id: errorcode
+    register_type: holding
+    address: 0x0b52 
 
 binary_sensor:
   - platform: template
@@ -386,6 +556,7 @@ binary_sensor:
 
   - platform: template
     name: "[WB] Pompa"
+    icon: mdi:pump
     lambda: |-
         uint16_t value = (int(id(wb).state) & 0xFF00) >> 8 | (int(id(wb).state) & 0x00FF);
         return (value & 1); 
@@ -405,6 +576,7 @@ binary_sensor:
 
   - platform: template
     name: "[WB] Wejście regulatora pokojowego"
+    icon: mdi:thermostat
     lambda: |-
       uint16_t value = (int(id(wb).state) & 0xFF00) >> 8 | (int(id(wb).state) & 0x00FF);
       return ((value >> 4) & 1);
@@ -417,16 +589,20 @@ binary_sensor:
      
   - platform: template
     name: "[WB] CO"
+    id: sensor_wb_co
+    icon: mdi:heating-coil
     lambda: |-
       uint16_t value = (int(id(wb).state) & 0xFF00) >> 8 | (int(id(wb).state) & 0x00FF);
       return ((value >> 7) & 1);
   
   - platform: template
     name: "[WB] CWU"
+    icon: mdi:faucet-variant
+    id: sensor_wb_cwu
     lambda: |-
-      uint16_t value = (int(id(wb).state) & 0xFF00) >> 8 | (int(id(wb).state) & 0x00FF);
-      return ((value >> 8) & 1);    
-        
+      return ((int(id(wb).state) >> 8) & 1);    
+
+
  #Konfiguracja
 text_sensor:
   - platform: modbus_controller
@@ -444,8 +620,8 @@ text_sensor:
         case 2: return std::string("Komfortowy");
         default: return std::string("Unknown");
         }
-        return x;      
-
+        return x;
+  
   - platform: modbus_controller
     modbus_controller_id: kospel
     name: "CO Regulacja"
@@ -461,7 +637,7 @@ text_sensor:
         case 1: return std::string("Nastawa ręczna");
         }
         return x;      
-        
+            
   - platform: modbus_controller
     modbus_controller_id: kospel
     name: "Tryb pracy kotła"
@@ -473,7 +649,7 @@ text_sensor:
         uint16_t value = data[1] << 8 |  data[0];
         switch (value) {
         case 0: return std::string("Ekonomiczny");
-        case 1: return std::string("Przeciw zamarzanie");
+        case 1: return std::string("Przeciwzamarzanie");
         case 2: return std::string("Komfortowy");
         case 3: return std::string("Komfortowy minus");
         case 4: return std::string("Komfortowy plus");
@@ -485,6 +661,7 @@ text_sensor:
   - platform: modbus_controller
     modbus_controller_id: kospel
     name: "[WB] Zawór TDR"
+    icon: mdi:pipe-valve
     id: tdr
     register_type: holding
     address: 0x0b51
@@ -498,5 +675,6 @@ text_sensor:
         default: return std::string("Unknown");
         }
         return x;   
-        
-               
+
+
+
